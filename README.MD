@@ -36,7 +36,6 @@
 ## 1. K8s deployment (Junior)
 
 ```bash
-
 Scenario:
 
 A company wants to roll out a web service built on Kubernetes. To make this happen, complete a file stub located at /home/ubuntu/tech-vault-q1/special-definition.yml with the steps that do the following:
