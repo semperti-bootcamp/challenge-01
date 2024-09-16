@@ -345,7 +345,155 @@ root@redis-slave-5b956db668-dhqkp:/data# redis-cli
 
 ## 02. Linux Automation
 
+Creamos el script *runscript.sh* que cumpla con la consigna solicitada:
 
+***runscript.sh***
+```bash
+#!/bin/bash
 
+# Ruta al archivo que se va a extraer
+TAR_FILE="./backup.tar.gz"
+
+# Directorio de extracción
+EXTRACT_DIR="./extracted"
+
+# Verificar si el archivo existe
+if [[ ! -f "$TAR_FILE" ]]; then
+  echo "El archivo $TAR_FILE no existe."
+  exit 1
+fi
+
+# Crear el directorio de extracción si no existe
+mkdir -p $EXTRACT_DIR
+
+# Extraer el archivo .tar.gz en el directorio de extracción
+echo "Extrayendo $TAR_FILE en $EXTRACT_DIR..."
+tar -xzvf $TAR_FILE -C $EXTRACT_DIR
+
+# Verificar si el grupo 'no-team' existe, si no, crearlo
+if ! getent group no-team > /dev/null; then
+    sudo groupadd no-team
+fi
+
+# Verificar si el usuario 'anonymous' existe, si no, crearlo
+if ! id "anonymous" &>/dev/null; then
+    sudo useradd -g no-team anonymous
+fi
+
+# Cambiar propietario y grupo de los archivos y directorios extraídos
+echo "Cambiando propietario y grupo a 'anonymous:no-team'..."
+chown -R anonymous:no-team $EXTRACT_DIR
+
+# Establecer permisos 0664 para todos los archivos extraídos
+echo "Estableciendo permisos 0664 para los archivos..."
+find $EXTRACT_DIR -type f -exec chmod 0664 {} \;
+
+# Establecer permisos 0775 para todos los directorios extraídos
+echo "Estableciendo permisos 0775 para los directorios..."
+find $EXTRACT_DIR -type d -exec chmod 0775 {} \;
+
+# Crear un nuevo archivo tar.gz con los archivos modificados
+NEW_TAR="fixed-backup.tar.gz"
+echo "Creando nuevo archivo comprimido $NEW_TAR..."
+tar -czvf $NEW_TAR $EXTRACT_DIR/*
+
+# Finalizar el script
+echo "Proceso completado. El archivo modificado está en $NEW_TAR."
+```
+
+La idea es verificar si existe el archivo, caso contrario sale del script. Si el archivo existe, verifica si existe el usuario y el grupo (caso contrario los crea). Acto seguido, cambia usuario y grupo con *chown*, cambia los permisos de los directorios y de los archivos, finalmente genera un tar.gz con los archivos modificados. 
+
+Antes de ejecutar el script, generamos el alias solicitado.
+
+```bash
+alias activate="sudo /home/gabo/Workspace/challenge-01/q2/runscript.sh"
+```
+
+Finalmente tipeamos *activate* para ejecutar el script realizado.
+
+```bash
+gabo@T0003428893:~/Workspace/challenge-01/q2$ ls -l
+total 8
+-rw-rw-r-- 1 gabo gabo  366 Sep 15 21:53 backup.tar.gz
+-rwxrw-r-- 1 gabo gabo 1527 Sep 16 00:52 runscript.sh
+
+gabo@T0003428893:~/Workspace/challenge-01/q2$ activate
+Extrayendo ./backup.tar.gz en ./extracted...
+dir_0/
+dir_0/file_0.txt
+dir_1/
+dir_1/file_0.txt
+dir_2/
+dir_2/file_0.txt
+dir_3/
+dir_3/file_0.txt
+dir_4/
+dir_4/file_0.txt
+dir_5/
+dir_5/file_0.txt
+file_0.txt
+file_1.txt
+file_2.txt
+file_3.txt
+file_4.txt
+file_5.txt
+file_6.txt
+file_7.txt
+file_8.txt
+file_9.txt
+Cambiando propietario y grupo a 'anonymous:no-team'...
+Estableciendo permisos 0664 para los archivos...
+Estableciendo permisos 0775 para los directorios...
+Creando nuevo archivo comprimido fixed-backup.tar.gz...
+./extracted/dir_0/
+./extracted/dir_0/file_0.txt
+./extracted/dir_1/
+./extracted/dir_1/file_0.txt
+./extracted/dir_2/
+./extracted/dir_2/file_0.txt
+./extracted/dir_3/
+./extracted/dir_3/file_0.txt
+./extracted/dir_4/
+./extracted/dir_4/file_0.txt
+./extracted/dir_5/
+./extracted/dir_5/file_0.txt
+./extracted/file_0.txt
+./extracted/file_1.txt
+./extracted/file_2.txt
+./extracted/file_3.txt
+./extracted/file_4.txt
+./extracted/file_5.txt
+./extracted/file_6.txt
+./extracted/file_7.txt
+./extracted/file_8.txt
+./extracted/file_9.txt
+Proceso completado. El archivo modificado está en fixed-backup.tar.gz.
+
+gabo@T0003428893:~/Workspace/challenge-01/q2$ ls -l
+total 16
+-rw-rw-r-- 1 gabo      gabo     366 Sep 15 21:53 backup.tar.gz
+drwxrwxr-x 8 anonymous no-team 4096 Sep 16 01:11 extracted
+-rw-r--r-- 1 root      root     396 Sep 16 01:11 fixed-backup.tar.gz
+-rwxrw-r-- 1 gabo      gabo    1527 Sep 16 00:52 runscript.sh
+
+gabo@T0003428893:~/Workspace/challenge-01/q2$ ls -l extracted/
+total 64
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_0
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_1
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_2
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_3
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_4
+drwxrwxr-x 2 anonymous no-team 4096 Feb  1  2024 dir_5
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_0.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_1.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_2.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_3.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_4.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_5.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_6.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_7.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_8.txt
+-rw-rw-r-- 1 anonymous no-team    6 Feb  1  2024 file_9.txt
+```
 
 
