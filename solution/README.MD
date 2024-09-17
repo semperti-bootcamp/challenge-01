@@ -105,13 +105,13 @@ A continuacion vemos el archivo yaml que se utilizara para realizar el deploymen
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: CyberCo
+  name: cyberco
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: redis-deployment
-  namespace: CyberCo
+  namespace: cyberco
 spec:
   replicas: 2
   selector:
@@ -132,7 +132,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-service
-  namespace: CyberCo
+  namespace: cyberco
 spec:
   selector:
     app: redis
@@ -550,4 +550,81 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 CMD curl 
 CMD ["node", "app.js"]
 ```
 
+El Dockerfile esta dividido en dos fases:
 
+**Fase 1: Builder:**
+
+* Usa una imagen base de Node.js para el entorno de desarrollo.
+* Define el directorio de trabajo (WORKDIR /app).
+* Copia los archivos package.json y package-lock.json para instalar las dependencias necesarias con npm install.
+* Copia el resto del código fuente.
+* Ejecuta el comando npm run build para compilar la aplicación, asumiendo que existe un script de build en package.json.
+
+**Fase 2: Producción:**
+
+* Usa una imagen ligera de Node.js (node:18-alpine), que es mucho más pequeña que la imagen completa de Node.js.
+* Crea un usuario y un grupo no-root para ejecutar la aplicación de forma segura.
+* Copia solo los archivos necesarios desde la fase anterior (package*.json y la carpeta dist, que contiene el código compilado).
+* Instala solo las dependencias de producción usando npm install --only=production para reducir el tamaño de la imagen final.
+* Cambia el propietario de los archivos a un usuario no-root y cambia el usuario que ejecutará la aplicación.
+* Expone el puerto 3000 y define el comando de inicio de la aplicación (npm start).
+
+
+Hacemos el build de la imagen y listamos:
+
+```bash
+abo@T0003428893:~/Workspace/challenge-01/solution/03$ docker build -t hola-mundo-node-app .
+[+] Building 4.3s (19/19) FINISHED                                                                                                                        docker:default
+ => [internal] load build definition from Dockerfile                                                                                                                0.1s
+ => => transferring dockerfile: 1.11kB                                                                                                                              0.0s
+ => [internal] load metadata for docker.io/library/node:18-alpine                                                                                                   2.2s
+ => [internal] load metadata for docker.io/library/node:18                                                                                                          2.2s
+ => [internal] load .dockerignore                                                                                                                                   0.0s
+ => => transferring context: 80B                                                                                                                                    0.0s
+ => [builder 1/6] FROM docker.io/library/node:18@sha256:ca07c02d13baf021ff5aadb3b48bcd1fcdd454826266ac313ce858676e8c1548                                            0.0s
+ => [production 1/7] FROM docker.io/library/node:18-alpine@sha256:02376a266c84acbf45bd19440e08e48b1c8b98037417334046029ab585de03e2                                  0.0s
+ => [internal] load build context                                                                                                                                   0.1s
+ => => transferring context: 2.25MB                                                                                                                                 0.0s
+ => CACHED [builder 2/6] WORKDIR /app                                                                                                                               0.0s
+ => CACHED [builder 3/6] COPY package*.json ./                                                                                                                      0.0s
+ => CACHED [builder 4/6] RUN npm install --production=false                                                                                                         0.0s
+ => [builder 5/6] COPY . .                                                                                                                                          0.2s
+ => [builder 6/6] RUN npm run build                                                                                                                                 0.5s
+ => CACHED [production 2/7] RUN apk add --no-cache curl                                                                                                             0.0s 
+ => CACHED [production 3/7] RUN addgroup -S appgroup && adduser -S appuser -G appgroup                                                                              0.0s 
+ => CACHED [production 4/7] WORKDIR /app                                                                                                                            0.0s
+ => CACHED [production 5/7] COPY --from=builder /app/package*.json ./                                                                                               0.0s
+ => CACHED [production 6/7] COPY --from=builder /app/node_modules ./node_modules                                                                                    0.0s
+ => CACHED [production 7/7] COPY --from=builder /app/app.js .                                                                                                       0.0s
+ => exporting to image                                                                                                                                              0.0s
+ => => exporting layers                                                                                                                                             0.0s
+ => => writing image sha256:d6f075a3d4a1a54888d16328fc20a710506a27b5a9463605492f164b1c3a4950                                                                        0.0s
+ => => naming to docker.io/library/hola-mundo-node-app                                                                                                              0.0s
+
+gabo@T0003428893:~/Workspace/challenge-01/solution/03$ docker images
+REPOSITORY            TAG       IMAGE ID       CREATED        SIZE
+hola-mundo-node-app   latest    d6f075a3d4a1   44 hours ago   135MB
+```
+
+Finalmente ejecutamos el contenedor y verificamos tener acceso al localhost:3000 por medio de un navegador o por un curl:
+
+```bash
+gabo@T0003428893:~/Workspace/challenge-01/solution/03$ docker run -d -p 3000:3000 hola-mundo-node-app
+9d8a5e73ae39728e4f1a08f6e60ff00d70b9cdf8f564fcfa10e627cf41cae225
+
+gabo@T0003428893:~/Workspace/challenge-01/solution/03$ docker ps
+CONTAINER ID   IMAGE                 COMMAND                  CREATED         STATUS                   PORTS                                       NAMES
+9d8a5e73ae39   hola-mundo-node-app   "docker-entrypoint.s…"   7 seconds ago   Up 7 seconds (healthy)   0.0.0.0:3000->3000/tcp, :::3000->3000/tcp   tender_sanderson
+```
+
+Web Browser:
+
+![](browser.png)
+
+
+Curl en bash:
+
+```bash
+gabo@T0003428893:~/Workspace/challenge-01/solution/03$ curl http://localhost:3000
+Hello World!
+```
